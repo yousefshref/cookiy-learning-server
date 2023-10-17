@@ -381,7 +381,7 @@ def delete_course(request):
 
 @api_view(['GET'])
 def get_all_courses(request):
-    courses = models.Course.objects.all()
+    courses = models.Course.objects.all().order_by('-review')
     q = request.GET.get('q')
     id = request.GET.get('id')
 
@@ -402,7 +402,7 @@ def get_all_courses(request):
         for q_object in q_objects:
             combined_q_object |= q_object
 
-        courses = courses.filter(combined_q_object)
+        courses = courses.filter(combined_q_object).order_by('-review')
 
     
 
@@ -539,7 +539,7 @@ def get_course_review(request):
         course_id=course
     )
 
-    ser = serializers.CourseReviewSerializer(reviews, many=True)
+    ser = serializers.CourseReviewSerializer(reviews.order_by('-review'), many=True)
 
     return Response(ser.data)
 

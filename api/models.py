@@ -41,9 +41,13 @@ class Course(models.Model):
     thumbnail = models.ImageField(upload_to='courses_thumbnails/')
     video_url = models.URLField()
 
+
     # optional
     free_video = models.URLField(null=True, blank=True)
     type = models.ForeignKey(Specialy, on_delete=models.SET_NULL, related_name='type_typecourse', null=True, blank=True)
+
+    # auto
+    review = models.IntegerField(null=True, blank=True)
     
     date = models.DateField(auto_now=True)
 
@@ -57,6 +61,15 @@ class Course(models.Model):
 
         # set type
         self.type = teacher_profile.specialty
+
+        # review check
+        reviews_count = []
+        all_reviews = CourseReview.objects.filter(course__id=self.id)
+        for i in all_reviews:
+            reviews_count.append(i.review)
+        sum_reviews = sum(reviews_count) / len(reviews_count)
+        self.review = sum_reviews
+        
         super(Course, self).save(*args, **kwargs)
 
 
@@ -83,6 +96,11 @@ class CourseReview(models.Model):
     def save(self, *args, **kwargs):
         profile = UserProfile.objects.get(user=self.student)
         self.student_profile = profile
+
+        # save course
+        course = Course.objects.get(id=self.course.id)
+        course.save()
+
         super(CourseReview, self).save(*args, **kwargs)
 
     def __str__(self):
