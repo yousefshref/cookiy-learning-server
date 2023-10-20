@@ -1,5 +1,5 @@
 from django.db import models
-
+import datetime
 
 class User(models.Model):
     username = models.CharField(max_length=50, unique=True, db_index=True)
@@ -27,6 +27,21 @@ class UserProfile(models.Model):
     specialty = models.ForeignKey(Specialy, null=True, blank=True, on_delete=models.SET_NULL, related_name='specialty_user_profile')
     subscribation_cost = models.IntegerField(null=True, blank=True)
 
+    # review
+    review = models.IntegerField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+
+        # review check
+        reviews_count = []
+        all_reviews = CourseReview.objects.filter(course__teacher__id=self.user.pk)
+        for i in all_reviews:
+            reviews_count.append(i.review)
+        sum_reviews = sum(reviews_count) / len(reviews_count)
+        self.review = sum_reviews
+
+        super(UserProfile, self).save(*args, **kwargs)
+
     def __str__(self):
         return str(self.user)
 
@@ -48,7 +63,16 @@ class Course(models.Model):
 
     # auto
     review = models.IntegerField(null=True, blank=True)
+    review_edit = models.IntegerField(null=True, blank=True)
+
+    enrolmments_count = models.IntegerField(null=True, blank=True)
+    enrolmments_count_edit = models.IntegerField(null=True, blank=True)
+
+    # ads
+    is_advertise = models.BooleanField(default=False)
+    ad_expire = models.DateField(null=True, blank=True)
     
+
     date = models.DateField(auto_now=True)
 
     def __str__(self):
@@ -62,14 +86,35 @@ class Course(models.Model):
         # set type
         self.type = teacher_profile.specialty
 
-        # review check
-        reviews_count = []
-        all_reviews = CourseReview.objects.filter(course__id=self.id)
-        for i in all_reviews:
-            reviews_count.append(i.review)
-        sum_reviews = sum(reviews_count) / len(reviews_count)
-        self.review = sum_reviews
-        
+
+        # edit_review
+        if self.review_edit:
+            self.review = self.review_edit
+        else:
+            try:
+                # review check
+                reviews_count = []
+                all_reviews = CourseReview.objects.filter(course__id=self.id)
+                for i in all_reviews:
+                    reviews_count.append(i.review)
+                sum_reviews = sum(reviews_count) / len(reviews_count)
+                self.review = sum_reviews
+            except:
+                pass
+
+
+        # check enrolmments
+        if self.enrolmments_count_edit:
+            self.enrolmments_count = self.enrolmments_count_edit
+        else:
+            all_enrollments = Enrollmment.objects.filter(course__id=self.pk)
+            self.enrolmments_count = len(all_enrollments)
+
+        # ads check
+        # print(datetime.datetime.now())
+        if str(self.ad_expire) in str(datetime.datetime.now()):
+            self.is_advertise = False
+
         super(Course, self).save(*args, **kwargs)
 
 
@@ -101,6 +146,10 @@ class CourseReview(models.Model):
         course = Course.objects.get(id=self.course.id)
         course.save()
 
+        # save teacher profile
+        profile = UserProfile.objects.get(user__id=self.course.teacher.pk)
+        profile.save()
+
         super(CourseReview, self).save(*args, **kwargs)
 
     def __str__(self):
@@ -118,11 +167,22 @@ class Enrollmment(models.Model):
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='teacher_teacherenrollment')
     student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='student_studentenrollment')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='course_courseenrollment')
+    
     date = models.DateField(auto_now=True)
     
 
     def save(self, *args, **kwargs):
+
         super(Enrollmment, self).save(*args, **kwargs)
+        # save course
+        course = Course.objects.get(id=self.course.pk)
+        course.save()
+
+    def delete(self, *args, **kwargs):
+        super(Enrollmment, self).delete(*args, **kwargs)
+        # save course
+        course = Course.objects.get(id=self.course.pk)
+        course.save()
 
 
     def __str__(self):

@@ -404,6 +404,8 @@ def get_all_courses(request):
 
         courses = courses.filter(combined_q_object).order_by('-review')
 
+    courses = courses.order_by('-id').order_by('-enrolmments_count').order_by('-review')
+
     
 
     paginator = Paginator(courses, 20)
